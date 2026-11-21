@@ -7,6 +7,9 @@
     "test": "brittle-bare test/*.test.js"
   },
   "license": "MIT",
+  "dependencies": {
+    "mycelium-value-json": "*"
+  },
   "devDependencies": {
     "brittle": "4.5.0",
     "corestore": "7.16.1"

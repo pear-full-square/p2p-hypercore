@@ -25,7 +25,11 @@ const identity = await t.keyPair('node')        // a keypair of this store's
 ```
 
 - **A record**: `{ key, value, timestamp, headers }`, Kafka's names; its
-  offset is its place in the topic. JSON.
+  offset is its place in the topic.
+- **Its encoding is a handler's**, `{ encode, decode }`, given with the
+  store: `topics(corestore, { handler })`; JSON
+  (`mycelium-value-json`) when none. Another encoding, AVRO, is another
+  handler: nothing of a topic's users changes.
 - **`fetch({ length, timeout })`**: the length is what the writer said it
   has; not there in time: `not fetched`. An update asked while no peer is
   connected yet answers at once, so it is asked again until it is there.

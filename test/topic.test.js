@@ -55,3 +55,14 @@ test('a keypair of the store\'s: derived by name, the same each time', async (t)
   t.unlike((await topics(store).keyPair('other')).publicKey, k.publicKey)
   await store.close()
 })
+
+test('a topic\'s encoding is the handler it is given: a record to bytes and back', async (t) => {
+  const store = new Corestore(dir())
+  const seen = []
+  const handler = { encode: r => { seen.push('encode'); return Buffer.from(`!${JSON.stringify(r)}`) }, decode: b => { seen.push('decode'); return JSON.parse(b.toString().slice(1)) } }
+  const own = await topics(store, { handler }).own('typed')
+  await own.append({ n: 1 }, { key: 'k' })
+  t.is((await own.core.get(0)).toString()[0], '!', 'stored as the handler wrote it')
+  t.alike([(await own.read())[0].value, seen], [{ n: 1 }, ['encode', 'decode']], 'read back through it')
+  await store.close()
+})

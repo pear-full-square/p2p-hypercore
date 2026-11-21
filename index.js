@@ -1,8 +1,9 @@
 // p2p-topic: topics for the p2p layer: a topic is a Hypercore of records,
 // in Kafka's sense: one partition, one writer, appended only, a record
 // read by its offset.
-//   const t = topics(corestore)          corestore: a Corestore (p2p-store's
-//                                        store.corestore)
+//   const t = topics(corestore, { handler })   corestore: a Corestore
+//                                        (p2p-store's store.corestore);
+//                                        handler: its records' encoding
 //   const own = await t.own(name)        a topic of this store's own, its
 //                                        keypair derived from the store's
 //                                        primary key and the name: writable
@@ -23,25 +24,31 @@
 //                             replication now open: its records taken
 //                             -> length; not there in time: throws
 // A record: { key, value, timestamp, headers }, Kafka's names; its offset
-// is its place in the topic. JSON.
+// is its place in the topic.
+// Its encoding is a handler's, { encode, decode }: one record to bytes
+// and back; topics(corestore, { handler }) takes the one it is given,
+// JSON (mycelium-value-json) when none: another encoding is another
+// handler, not a change to a topic's users.
+import * as json from 'mycelium-value-json'
+
 const hex = b => Buffer.from(b).toString('hex')
 
-function topicOf (core) {
+function topicOf (core, handler) {
   return {
     core,
     key: hex(core.key),
     get writable () { return core.writable },
     get length () { return core.length },
     async append (value, { key = null, headers = {}, timestamp = new Date().toISOString() } = {}) {
-      const { length } = await core.append({ key, value, timestamp, headers })
+      const { length } = await core.append(handler.encode({ key, value, timestamp, headers }))
       return length - 1
     },
     async read ({ from = 0, to = core.length } = {}) {
       const out = []
       for (let offset = Math.max(0, from); offset < Math.min(to, core.length); offset++) {
         // (a block a replica does not hold yet: not waited for, left out)
-        const record = await core.get(offset, { wait: false })
-        if (record) out.push({ offset, ...record })
+        const bytes = await core.get(offset, { wait: false })
+        if (bytes) out.push({ offset, ...handler.decode(bytes) })
       }
       return out
     },
@@ -60,13 +67,13 @@ function topicOf (core) {
   }
 }
 
-export function topics (corestore) {
+export function topics (corestore, { handler = json } = {}) {
   const opened = new Map()
   const open = async (id, options) => {
     if (opened.has(id)) return opened.get(id)
-    const core = corestore.get({ ...options, valueEncoding: 'json' })
+    const core = corestore.get(options)
     await core.ready()
-    const topic = topicOf(core)
+    const topic = topicOf(core, handler)
     opened.set(id, topic)
     return topic
   }
