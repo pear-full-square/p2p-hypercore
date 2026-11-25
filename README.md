@@ -1,9 +1,9 @@
-# p2p-topic
+# p2p-hypercore
 
-Topics for the p2p layer: records in a Hypercore, one writer each, appended, read by offset.
+Hypercores of records for the p2p layer: one writer each, appended, read by offset.
 
-One of the p2p series. A topic is a Hypercore of records, in Kafka's
-sense: one partition, one writer, appended only. A store's own topic is
+One of the p2p series. A core is a Hypercore of records: one writer, appended only: a
+storage container, not a core (a core is an mrepo's, logical). A store's own core is
 writable, by name; another store's is a replica, opened by its key and
 filled by replication over whatever stream the application opens.
 
@@ -14,8 +14,8 @@ filled by replication over whatever stream the application opens.
 ## Usage
 
 ```js
-import { topics } from 'p2p-topic'
-const t = topics(store.corestore)               // a Corestore: p2p-store's
+import { hypercores } from 'p2p-hypercore'
+const t = hypercores(store.corestore)               // a Corestore: p2p-store's
 const own = await t.own('registry')             // this store's, writable
 await own.append({ op: 'register' }, { key })   // -> its offset
 await own.read({ from: 0 })                     // [{ offset, key, timestamp, headers, value }]
@@ -25,18 +25,18 @@ const identity = await t.keyPair('node')        // a keypair of this store's
 ```
 
 - **A record**: `{ key, value, timestamp, headers }`, Kafka's names; its
-  offset is its place in the topic.
+  offset is its place in the core.
 - **Its encoding is a handler's**, `{ encode, decode }`, given with the
-  store: `topics(corestore, { handler })`; JSON
+  store: `hypercores(corestore, { handler })`; JSON
   (`mycelium-value-json`) when none. Another encoding, AVRO, is another
-  handler: nothing of a topic's users changes.
+  handler: nothing of a core's users changes.
 - **`fetch({ length, timeout })`**: the length is what the writer said it
   has; not there in time: `not fetched`. An update asked while no peer is
   connected yet answers at once, so it is asked again until it is there.
 - **`read`** answers what is held: a record a replica has not taken yet
   is left out, not waited for.
 - **A keypair** is derived from the store's primary key and a name, as
-  an own topic's is: the same each time the store is opened.
+  an own core's is: the same each time the store is opened.
 
 ## Tests
 

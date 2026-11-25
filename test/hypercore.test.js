@@ -3,14 +3,14 @@ import { mkdtempSync } from 'bare-fs'
 import { join } from 'bare-path'
 import { tmpdir } from 'bare-os'
 import Corestore from 'corestore'
-import { topics } from '../index.js'
+import { hypercores } from '../index.js'
 
-const dir = () => mkdtempSync(join(tmpdir(), 'p2p-topic-'))
+const dir = () => mkdtempSync(join(tmpdir(), 'p2p-hypercore-'))
 
-test('a topic of the store\'s own: records appended, read by offset, the same topic by the same name', async (t) => {
+test('a core of the store\'s own: records appended, read by offset, the same core by the same name', async (t) => {
   const storage = dir()
   let store = new Corestore(storage)
-  let own = await topics(store).own('registry')
+  let own = await hypercores(store).own('registry')
   t.is(own.writable, true)
   t.is(await own.append({ op: 'register', uri: 'swarm-1/master' }, { key: 'swarm-1/master', timestamp: '2026-11-21T00:00:00.000Z' }), 0, 'its offset')
   t.is(await own.append({ op: 'quiet', uri: 'swarm-1/node-1' }), 1)
@@ -19,19 +19,19 @@ test('a topic of the store\'s own: records appended, read by offset, the same to
   const key = own.key
   await store.close()
   store = new Corestore(storage)
-  own = await topics(store).own('registry')
+  own = await hypercores(store).own('registry')
   t.alike([own.key, own.length], [key, 2], 'opened again: the same key, its records kept')
-  t.not((await topics(store).own('log')).key, key, 'another name, another topic')
+  t.not((await hypercores(store).own('log')).key, key, 'another name, another core')
   await store.close()
 })
 
 test('a replica: read only, empty until replicated, then fetched up to what the writer has', async (t) => {
   const a = new Corestore(dir())
   const b = new Corestore(dir())
-  const own = await topics(a).own('log')
+  const own = await hypercores(a).own('log')
   await own.append({ n: 1 })
   await own.append({ n: 2 })
-  const replica = await topics(b).replica(own.key)
+  const replica = await hypercores(b).replica(own.key)
   t.alike([replica.writable, replica.length], [false, 0])
   await t.exception(replica.fetch({ length: 2, timeout: 300 }), /not fetched in 300 ms/, 'no replication open: not fetched, said')
   const s1 = a.replicate(true)
@@ -48,19 +48,19 @@ test('a replica: read only, empty until replicated, then fetched up to what the 
 test('a keypair of the store\'s: derived by name, the same each time', async (t) => {
   const storage = dir()
   let store = new Corestore(storage)
-  const k = await topics(store).keyPair('node')
+  const k = await hypercores(store).keyPair('node')
   await store.close()
   store = new Corestore(storage)
-  t.alike((await topics(store).keyPair('node')).publicKey, k.publicKey)
-  t.unlike((await topics(store).keyPair('other')).publicKey, k.publicKey)
+  t.alike((await hypercores(store).keyPair('node')).publicKey, k.publicKey)
+  t.unlike((await hypercores(store).keyPair('other')).publicKey, k.publicKey)
   await store.close()
 })
 
-test('a topic\'s encoding is the handler it is given: a record to bytes and back', async (t) => {
+test('a core\'s encoding is the handler it is given: a record to bytes and back', async (t) => {
   const store = new Corestore(dir())
   const seen = []
   const handler = { encode: r => { seen.push('encode'); return Buffer.from(`!${JSON.stringify(r)}`) }, decode: b => { seen.push('decode'); return JSON.parse(b.toString().slice(1)) } }
-  const own = await topics(store, { handler }).own('typed')
+  const own = await hypercores(store, { handler }).own('typed')
   await own.append({ n: 1 }, { key: 'k' })
   t.is((await own.core.get(0)).toString()[0], '!', 'stored as the handler wrote it')
   t.alike([(await own.read())[0].value, seen], [{ n: 1 }, ['encode', 'decode']], 'read back through it')

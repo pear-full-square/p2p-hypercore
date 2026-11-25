@@ -1,6 +1,6 @@
 {
-  "name": "p2p-topic",
-  "description": "Topics for the p2p layer: records in a Hypercore, one writer each, appended, read by offset, a replica filled by replication",
+  "name": "p2p-hypercore",
+  "description": "Hypercores of records for the p2p layer: one writer each, appended, read by offset, a replica filled by replication",
   "type": "module",
   "exports": "./index.js",
   "scripts": {
